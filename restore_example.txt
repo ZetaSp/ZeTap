@@ -1,0 +1,7 @@
+[ZeTap Batch File]_0.1.0_AUTOMAKE
+//Soft: Example
+//Version: 0.0.0
+//Restore Script
+
+<example.js
+^
