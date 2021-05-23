@@ -1,28 +1,32 @@
 # ZeTap
 
-THE Translation Auto Processor
+The Translation Auto Processor
+
+0.2.0 test
 
 ## Intro
 
-ZeTap.cmd: A simple launcher. Drag the Batch Files into.
+__ZeTap.cmd__: A simple launcher. Drag the Batch Files into.
 
-vim: The editor.
+__vim__: The editor.
 
-ZeTap.vim: Auto process engine.
+__ZeTap.vim__: Auto process engine.
 
-loc_example.txt: ZeTap Batch File, for translating the file.
+__example.js & .bak__: Example
 
-restore_example.txt: ZeTap Batch File, for restoring the file from bak.
+__loc_example.txt__: ZeTap Batch File, for translating the example file.
+
+__restore_example.txt__: ZeTap Batch File, for restoring the example file from bak.
 
 ## Have a try
 
-Drag restore_example.txt into ZeTap.cmd.
+Drag __restore_example.txt__ into __ZeTap.cmd__.
 
-example.js was restored.
+__example.js__ was restored.
 
-Then drag loc_example.txt into.
+Then drag __loc_example.txt__ into.
 
-example.js was translated.
+__example.js__ was translated.
 
 Nice.
 
@@ -86,6 +90,12 @@ __:__ Vim command
 ### Set Range (not finished yet)
 
 __?__ Search & jump
+
 __[__ Set front boundary
+
 __]__ Set back boundary
+
 __[]__ Reset
+
+#### ⚠ These grammars may change at any time.
+#### Err... before 1.0.0.
