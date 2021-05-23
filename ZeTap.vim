@@ -1,7 +1,7 @@
 " ZeTap - THE Translation Auto Processor
 " Maintainer:	Zetaspace <ideaploter@outlook.com>
-" Version:	0.1.0 Alpha
-" Last Update:	2021 May 4
+" Version:	0.2.0 Alpha
+" Last Update:	2021 May 23
 
 
 
@@ -12,7 +12,7 @@ set nofixeol
 
 
 
-""" DEBUG patch
+""" DEBUG
 function! DEBUG(info)
 	if g:DEBUG==1
 		echo '[DEBUGINFO] '.a:info
@@ -22,7 +22,7 @@ command! -nargs=1 -bar DEBUG call DEBUG(<args>)
 
 
 
-""" While True Break patch
+""" While True Break
 let True=1
 function! True()
 	if g:True==0
@@ -42,11 +42,10 @@ command! -nargs=0 -bar True call True()
 " 	<COMMANDS>
 " 	Break
 " endwhile
-" ...Why? Because I hate these boring loops.
 
 
 
-""" To Goto patch
+""" Goto
 let GotoDict={'SOF':0, 'EOF':-1}
 let RunPointer=-1 "Not running.
 function! To(lable)
@@ -120,6 +119,11 @@ function! Replace(a,b)
 	endfor
 endfunction
 
+function! AutoEscape(a)
+	DEBUG '自动转义: '.a:a
+	return substitute(substitute(a:a,'\','\\\\','g'),'&','\\\&','g')
+endfunction
+
 
 
 """ Files Actions
@@ -136,11 +140,28 @@ function! Open(path)
 	let g:Files+=[a:path]
 	call uniq(sort(g:Files))
 endfunction
+
 function! Clopen(path)
 	DEBUG '          切换: '.a:path
 	call CloseAll()
 	call Open(a:path)
 endfunction
+
+function! Save(path)
+	DEBUG '          保存: '.a:path
+	FILEINFO 'Close: '.a:path
+	update!
+	call filter(g:Files, 'v:val!=a:path')
+endfunction
+function! SaveAll()
+	DEBUG '          全部保存'
+	if g:Files!=[]
+		FILEINFO 'Save all'
+		update!
+		let g:Files=[]
+	endif
+endfunction
+
 function! Close(path)
 	DEBUG '          关闭: '.a:path
 	FILEINFO 'Close: '.a:path
@@ -157,6 +178,7 @@ function! CloseAll()
 		let g:Files=[]
 	endif
 endfunction
+
 function! Delete(path)
 	DEBUG '          删除: '.a:path
 	FILEINFO 'Delete: '.a:path
@@ -173,10 +195,12 @@ function! DeleteAll()
 		let g:Files=[]
 	endif
 endfunction
+
 function! Backup(path)
 	DEBUG '          备份: '.a:path
 	FILEINFO 'Backup: '.a:path
 	execute('silent !copy '.a:path.' '.a:path.'.bak /Y')
+	redraw!
 endfunction
 function! BackupAll()
 	DEBUG '          全部备份'
@@ -184,14 +208,17 @@ function! BackupAll()
 		FILEINFO 'Backup all'
 		for item in g:Files
 			execute('silent !copy '.item.' '.item.'.bak /Y')
+			redraw!
 		endfor
 	endif
 endfunction
+
 function! Restore(path)
 	DEBUG '          恢复: '.a:path
 	FILEINFO 'Restore: '.a:path
 	execute('bdelete! '.a:path)
 	execute('silent !copy '.a:path.'.bak '.a:path.' /Y')
+	redraw!
 	execute('silent drop '.a:path)
 	bufdo e!
 endfunction
@@ -202,6 +229,7 @@ function! RestoreAll()
 		for item in g:Files
 			execute('bdelete! '.item)
 			execute('silent !copy '.item.'.bak '.item.' /Y')
+			redraw!
 			execute('silent drop '.item)
 		endfor
 		bufdo e!
@@ -211,6 +239,7 @@ endfunction
 
 
 echo '[info] Env loaded.'
+" ----------------------------------------------------------------------------------------------------
 
 
 
@@ -233,9 +262,8 @@ else
 	echo '[info] Reading ZeTap batch file '.join(Header[1:],' -')
 	let RunStatus=0		"  0     : Main
 				" >0     : Comment Block Layers
-				" -1-srch: Search
-				" -1-repl: Replace
-				" -1-exe : Execute
+				" -1-# or $: Search
+				" -1- : Replace or Execute
 	while True()
 		let Str=getline(Line)
 		let Columns=strlen(Str)
@@ -249,9 +277,16 @@ else
 					call Runnew('call Replace(Run[RunPointer][1],Run[RunPointer][2])')
 					call Runadd(Str[Column:])
 					let RunStatus='-1-#'
+				elseif Str[Column-1]=='$'
+					DEBUG '          搜索: '.Str[Column:]
+					call Runnew('call Replace(Run[RunPointer][1],AutoEscape(Run[RunPointer][2]))')
+					call Runadd(Str[Column:])
+					let RunStatus='-1-$'
+				elseif Str[Column-1]=='?'
+					DEBUG '          搜索: '.Str[Column:]
+					call Runnew('call search(Run[RunPointer][1])')
+					call Runadd(Str[Column:])
 				elseif Str[Column-1:Column]=='//'
-					DEBUG '          注释'
-				elseif Str[Column-1:Column]=='**'
 					DEBUG '          注释'
 				elseif Str[Column-1:Column]=='/*'
 					DEBUG '          注释块: 开始'
@@ -280,6 +315,15 @@ else
 						call Runnew('call Clopen(Run[RunPointer][1])')
 						call Runadd(Str[Column:])
 					endif
+				elseif Str[Column-1]=='>>'
+					if Str[Column:]==''
+						DEBUG '          保存所有文件: '.Str[Column+1:]
+						call Runnew('call SaveAll()')
+					else
+						DEBUG '          保存文件: '.Str[Column+1:]
+						call Runnew('call Save(Run[RunPointer][1])')
+						call Runadd(Str[Column+1:])
+					endif
 				elseif Str[Column-1]=='>'
 					if Str[Column:]==''
 						DEBUG '          关闭所有文件: '.Str[Column:]
@@ -289,7 +333,7 @@ else
 						call Runnew('call Close(Run[RunPointer][1])')
 						call Runadd(Str[Column:])
 					endif
-				elseif Str[Column-1]=='!'
+				elseif Str[Column-1]=='x'
 					if Str[Column:]==''
 						DEBUG '          删除所有文件: '.Str[Column:]
 						call Runnew('call DeleteAll()')
@@ -298,7 +342,7 @@ else
 						call Runnew('call Delete(Run[RunPointer][1])')
 						call Runadd(Str[Column:])
 					endif
-				elseif Str[Column-1]=='_'
+				elseif Str[Column-1]=='b'
 					if Str[Column:]==''
 						DEBUG '          备份所有文件: '.Str[Column:]
 						call Runnew('call BackupAll()')
@@ -307,7 +351,7 @@ else
 						call Runnew('call Backup(Run[RunPointer][1])')
 						call Runadd(Str[Column:])
 					endif
-				elseif Str[Column-1]=='^'
+				elseif Str[Column-1]=='r'
 					if Str[Column:]==''
 						DEBUG '          恢复所有文件: '.Str[Column:]
 						call Runnew('call RestoreAll()')
@@ -345,6 +389,19 @@ else
 					let RunStatus='-1- '
 				else
 					DEBUG '          替换: '.Str[Column:]
+					call Runadd(Str[Column:])
+					let RunStatus=0
+				endif
+			elseif RunStatus=='-1-$'
+				if Str[Column-1]=='$'
+					DEBUG '          （更多）: '.Str[Column:]
+					call Runmore("\n".Str[Column:])
+				elseif Str[Column-1]==' '
+					DEBUG '          转义替换: '.Str[Column:]
+					call Runadd(Str[Column:])
+					let RunStatus='-1- '
+				else
+					DEBUG '          转义替换: '.Str[Column:]
 					call Runadd(Str[Column:])
 					let RunStatus=0
 				endif
@@ -400,3 +457,6 @@ endif
 """ strlen(getline('.'))当前行字数
 "getcurpos()[1]当前行号
 "line('$')
+"line('.')
+"col('.')
+"rand()

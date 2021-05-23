@@ -1,4 +1,4 @@
-[ZeTap Batch File]_0.1.0_AUTOMAKE
+[ZeTap Batch File]_0.2.0_AUTOMAKE
 //Soft: Example
 //Version: 0.0.0
 
@@ -10,9 +10,9 @@ example
 */
 
 <example.js
-#&File
- 文件(\&F)
-#File
+$&File
+ 文件(&F)
+$File
  文件1
 >
 
