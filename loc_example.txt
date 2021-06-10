@@ -1,23 +1,20 @@
-[ZeTap Batch File]_0.2.0_AUTOMAKE
+[ZeTap Batch Script]_0.3.0_AUTOMAKE
 //Soft: Example
 //Version: 0.0.0
 
-/*
-This is an example.
-/*
-example
-*/
-*/
-
 <example.js
+?123
+[
+?stop
+]
 $&File
- �ļ�(&F)
+ 文件(&F)
 $File
- �ļ�1
+ 【文件】
+[]
+
+//ExAAAAAAAAAAMMMMMMMMMMple
+#am
+ AAAAAAAAAAAMMMMMMMMMM
+
 >
-
-:echo 'you''ll never see this.(AUTOMAKE)'
-
-:if 1!=1
- echo 'panic'
- endif

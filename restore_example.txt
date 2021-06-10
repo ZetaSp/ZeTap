@@ -1,7 +1,5 @@
-[ZeTap Batch File]_0.2.0_AUTOMAKE
-//Soft: Example
-//Version: 0.0.0
-//Restore Script
+[ZeTap Batch Script]_0.3.0_AUTOMAKE
+//Restore backup
 
-<example.js
-r
+<example.js.bak
+>example.js

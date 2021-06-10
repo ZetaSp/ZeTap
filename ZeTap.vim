@@ -1,12 +1,14 @@
 " ZeTap - THE Translation Auto Processor
 " Maintainer:	Zetaspace <ideaploter@outlook.com>
-" Version:	0.2.0 Alpha
-" Last Update:	2021 May 23
+" Version:	0.3.0 Alpha
+" Last Update:	2021 Jun 10
 
 
 
+let ZeTap_Version='0.3.0'
 let DEBUG=0
 let AUTOMAKE=0
+set encoding=utf-8
 set fileencodings=ucs-bom,utf-8,cp936,gb18030,big5,euc-jp,euc-kr,latin1
 set nofixeol
 
@@ -23,7 +25,7 @@ command! -nargs=1 -bar DEBUG call DEBUG(<args>)
 
 
 """ While True Break
-let True=1
+let g:True=1
 function! True()
 	if g:True==0
 		let g:True=1
@@ -46,8 +48,8 @@ command! -nargs=0 -bar True call True()
 
 
 """ Goto
-let GotoDict={'SOF':0, 'EOF':-1}
-let RunPointer=-1 "Not running.
+let g:GotoDict={'SOF':0, 'EOF':-1}
+let g:RunPointer=-1 "Not running.
 function! To(lable)
 	if g:RunPointer>=0
 		let g:GotoDict[a:lable]=g:RunPointer
@@ -57,7 +59,7 @@ function! To(lable)
 endfunction
 function! Goto(lable)
 	if g:RunPointer>=0
-		if haskey(g:GotoDict,a:lable)
+		if has_key(g:GotoDict,a:lable)
 			let g:NextRunPointer=g:GotoDict[a:lable]
 		else
 			echo '[error] Lable '''.a:lable.''' not found.'
@@ -70,12 +72,12 @@ command! -nargs=1 -bar To call To(<args>)
 command! -nargs=1 -bar Goto call Goto(<args>)
 "
 " To <LABLE>
-"   Create:The LABLE
+"    Create: The LABLE
 " Goto <LABLE>
-"   Use:It
+"    JumpTo: It
 "
 " Available: 	INSIDE the virtual machine.
-" Preprocess:	'::' at code start will be pre-processed as LABLEs.
+" Preproces:	'::' at code start will be pre-processed as LABLEs.
 " 	e.g.	::LABLE1
 " Overwrite: 	Always.
 
@@ -86,7 +88,7 @@ let Run=[]
 function! Runnew(data)
 	let g:Run+=[[a:data.'']]
 endfunction
-function! Runadd(data)
+function! Runarg(data)
 	if len(g:Run)<1
 		echo '[error] Run is empty. Please Runnew() first.'
 	else
@@ -100,156 +102,367 @@ function! Runmore(data)
 		let g:Run[len(g:Run)-1][len(g:Run[len(g:Run)-1])-1].=a:data.''
 	endif
 endfunction
+function! Run0more(data)
+	if len(g:Run)<1
+		echo '[error] Run is empty. Please Runnew() first.'
+	else
+		let g:Run[len(g:Run)-1][0].=a:data.''
+	endif
+endfunction
 "nmap echo :echo Run<enter>		"Test only.
 "nmap clean :let Run=[]<enter>		"Test only.
 
 
 
-""" Core Actions
-function! Replace(a,b)
-	DEBUG 'Ìæ»»: '.a:a.' --> '.a:b
-	echo '¡õ¡ö '.a:a.' --> '.a:b
-	for item in g:Files
-		let buf=bufnr(item)
-		call bufload(buf)
-		let page=split(substitute(join(getbufline(buf,1,'$'),"\n"),a:a,a:b,''),"\n",1)
-		call deletebufline(buf,1,'$')
-		call setbufline(buf,1,page)
-		DEBUG 'page: '.string(page)
-	endfor
+""" Edit Actions
+function! CheckRange()
+	if exists('b:Range')!=1
+		DEBUG 'æ£€æŸ¥è¾¹ç•Œ: ä¸å­˜åœ¨ï¼Œé»˜è®¤å…¨é€‰'
+		let b:Range=['','$']
+	else
+		DEBUG 'æ£€æŸ¥è¾¹ç•Œ: å­˜åœ¨'
+	endif
+endfunction
+function! LocateIndex(r)
+	let re=a:r[:]
+	if re[0]is''
+		let re[0]=[0,0]
+	endif
+	if re[1]is'$'
+		let re[1]=[0,0]
+	endif
+	if re[0][0]==0
+		let re[0][0]=1
+	endif
+	if re[0][1]==0
+		let re[0][1]=1
+	endif
+	if re[1][0]==0
+		let re[1][0]=line('$')
+	endif
+	if re[1][1]==0
+		let re[1][1]=len(getline(line('$')))	" DO NOT USE col('$') HERE !!!
+	endif
+	let re[0][0]-=1
+	let re[0][1]-=1
+	let re[1][0]-=1
+	let re[1][1]-=1
+	DEBUG 'ç´¢å¼•è¾¹ç•Œ: ['.re[0][0].','.re[0][1].'],['.re[1][0].','.re[1][1].']'
+	return re
 endfunction
 
-function! AutoEscape(a)
-	DEBUG '×Ô¶¯×ªÒå: '.a:a
-	return substitute(substitute(a:a,'\','\\\\','g'),'&','\\\&','g')
+function! Replace(a='',b='')
+	DEBUG 'æ›¿æ¢: '.a:a.' --> '.a:b
+	echo 'â–¡â–  '.a:a.' --> '.a:b
+
+
+echo '0------------------------'
+	echo '[DBG] fullpage'
+	echo fullpage
+	echo '[DBG] b:Range'
+	echo b:Range
+	echo '[DBG] pageL'
+	echo pageL
+	echo '[DBG] page'
+	echo page
+	echo '[DBG] pageR'
+	echo pageR
+	echo '[DBG] pagestrL'
+	echo pagestrL
+	echo '[DBG] pagestr'
+	echo pagestr
+	echo '[DBG] pagestrR'
+	echo pagestrR
+	echo '[DBG] pagestr0'
+	echo pagestr0
+	echo '[DBG] pagestr1'
+	echo pagestr1
+	echo '------------------------'
+
+
+	call CheckRange()
+	let i=LocateIndex(b:Range)
+	let L0=i[0][0]
+	let L1=i[0][1]
+	let R0=i[1][0]
+	let R1=i[1][1]
+
+	" E X A M P L E
+	"
+	" Read
+	"    fullpage (list)
+	"       The quick brown fox jumps over the lazy dog.
+	"       The quick brown <fox> jumps over the lazy dog.	<-- Selected line
+	"       The quick brown fox jumps over the lazy dog.
+	"
+	" Separate
+	"    pageL (--> str):
+	"       The quick brown fox jumps over the lazy dog.
+	"       The quick brown_
+	"    page (--> str --> substitute):
+	"       fox -> dog
+	"    pageR (--> str):
+	"       _jumps over the lazy dog.
+	"
+	" Unite
+	"    str.str.str --> split("\n") --> list
+	"       The...dog.\nThe quick brown_
+	"       + dog
+	"       + _jumps over...dog.\nThe...dog.
+	"    ->	The quick brown fox jumps over the lazy dog.
+	"    ->	The quick brown dog jumps over the lazy dog.
+	"    ->	The quick brown fox jumps over the lazy dog.
+	"
+	" Write
+	"    Delete all.
+	"    Write pages.
+
+	let pageL=[]
+	let page=[]
+	let pageR=[]
+	let pagestrL=''
+	let pagestr=''
+	let pagestrR=''
+	let fullpage=getline(1,'$')
+
+
+echo '1------------------------'
+	echo '[DBG] fullpage'
+	echo fullpage
+	echo '[DBG] i'
+	echo i
+	echo '[DBG] pageL'
+	echo pageL
+	echo '[DBG] page'
+	echo page
+	echo '[DBG] pageR'
+	echo pageR
+	echo '[DBG] pagestrL'
+	echo pagestrL
+	echo '[DBG] pagestr'
+	echo pagestr
+	echo '[DBG] pagestrR'
+	echo pagestrR
+	echo '[DBG] pagestr0'
+	echo pagestr0
+	echo '[DBG] pagestr1'
+	echo pagestr1
+	echo '------------------------'
+
+
+	if L0!=0				" If the former part line is not empty
+		let pageL+=fullpage[:L0-1]
+		let pageL+=['']			" The start of a new line (the selected line)
+	endif
+	let pageR+=fullpage[R0+1:]
+	let pagestrL.=join(pageL,"\n")		" DO NOT USE += HERE !!!
+
+	if L0==R0
+		let page=fullpage[L0:R0]
+		let pagestr=page[0]
+
+		let pagestrR.=pagestr[R1+1:]
+		let pagestr=pagestr[:R1]
+		if L1!=0
+			let pagestrL.=pagestr[:L1-1]
+			let pagestr=pagestr[L1:]
+		endif
+	else
+		let pagestr0=fullpage[L0]		" Selected line 0
+		let pagestr1=fullpage[R0]		" Selected line 1
+		let page=fullpage[L0+1:R0-1]		" Lines between two selected lines
+
+		let pagestrR.=pagestr1[R1+1:]
+		let pagestr1=pagestr1[:R1]
+		if L1!=0
+			let pagestrL.=pagestr0[:L1-1]
+			let pagestr0=pagestr0[L1:]
+		endif
+		
+		let pagestr=join([pagestr0]+page+[pagestr1],"\n")
+	endif
+
+	if pageR!=[]
+		let pagestrR.="\n".join(pageR,"\n")
+	endif
+
+
+echo '2------------------------'
+	echo '[DBG] fullpage'
+	echo fullpage
+	echo '[DBG] i'
+	echo i
+	echo '[DBG] pageL'
+	echo pageL
+	echo '[DBG] page'
+	echo page
+	echo '[DBG] pageR'
+	echo pageR
+	echo '[DBG] pagestrL'
+	echo pagestrL
+	echo '[DBG] pagestr'
+	echo pagestr
+	echo '[DBG] pagestrR'
+	echo pagestrR
+	echo '[DBG] pagestr0'
+	echo pagestr0
+	echo '[DBG] pagestr1'
+	echo pagestr1
+	echo '------------------------'
+
+
+
+	let pagestr=substitute(pagestr,a:a,a:b,'g')	" Substitute selected part
+	let pagestr=pagestrL.pagestr.pagestrR		" Reunite
+	let page=split(pagestr,"\n",1)
+	1,$delete
+	call setline(1,page)
+
+	"let buf=bufnr()
+	"call bufload(buf)
+	"let page=split(substitute(join(getbufline(buf,1,'$'),"\n"),a:a,a:b,''),"\n",1)
+	"call deletebufline(buf,1,'$')
+	"call setbufline(buf,1,page)
+	"DEBUG 'page: '.string(page)
+endfunction
+
+function! AutoEscapePat(a)
+	DEBUG 'è‡ªåŠ¨è½¬ä¹‰(pat): '.a:a
+	return substitute(a:a,'\(\$\)\|\(\.\)\|\(\*\)\|\(\~\)\|\(\\\)','\\&','g')
+	" $ --> \$
+	" . --> \.
+	" * --> \*
+	" ~ --> \~
+	" \ --> \\
+endfunction
+function! AutoEscapeSub(a)
+	DEBUG 'è‡ªåŠ¨è½¬ä¹‰(sub): '.a:a
+	return substitute(a:a,'\(&\)\|\(\\\)','\\&','g')
+	" & --> \&
+	" \ --> \\
+endfunction
+
+let SecL=[0,0]
+let SecR=[0,0]
+"let b:Range=[[0,0],[line('$'),col('$')]]	NOOOOOO!!! DONOT USE THIS!
+function! Search(a)
+	DEBUG 'æœç´¢: '.a:a
+	echo '>â–¡ '.a:a
+	if searchpos(a:a,'zncW')==[1,1]
+		let g:SecL=[1,1]
+	else
+		let g:SecL=searchpos(a:a,'zW')
+	endif
+	let g:SecR=searchpos(a:a,'zencW')
+endfunction
+
+function! SetL()
+	DEBUG 'è®¾ç½®å‰è¾¹ç•Œ'
+	call CheckRange()
+	if g:SecL==[0,0]
+		let b:Range[0]=''
+	else
+		let b:Range[0]=g:SecL
+	endif
+	echo b:Range
+endfunction
+function! SetR()
+	DEBUG 'è®¾ç½®åè¾¹ç•Œ'
+	call CheckRange()
+	if g:SecR==[0,0]
+		let b:Range[1]='$'
+	else
+		let b:Range[1]=g:SecR
+	endif
+	echo b:Range
+endfunction
+function! SetReset()
+	DEBUG 'é‡ç½®è¾¹ç•Œ'
+	let b:Range=['','$']
+endfunction
+
+function! Add(a)
+	DEBUG 'æ·»åŠ æ–‡æœ¬: '.a:a
+	echo '+ '.a:a
+	"""""""""
+endfunction
+function! Del(a)
+	DEBUG 'åˆ é™¤æ–‡æœ¬: '.a:a
+	echo '- '.a:a
+	"""""""""
 endfunction
 
 
 
-""" Files Actions
+""" File Actions
 function! FILEINFO(info)
-	echo '¡ö¡õ '.a:info
+	echo 'â– â–¡ '.a:info
 endfunction
 command! -nargs=1 -bar FILEINFO call FILEINFO(<args>)
 
-let Files=[]
+function! OpenBlank()
+	FILEINFO 'Open blank'
+	" :enew won't open a new blank file while there's already one in use
+	new
+	let blankfile=bufnr()
+	q
+	execute('silent buf '.blankfile)
+endfunction
 function! Open(path)
-	DEBUG '          ´ò¿ª: '.a:path
 	FILEINFO 'Open: '.a:path
-	execute('silent drop '.a:path)
-	let g:Files+=[a:path]
-	call uniq(sort(g:Files))
+	execute('silent open '.a:path)
 endfunction
 
-function! Clopen(path)
-	DEBUG '          ÇĞ»»: '.a:path
-	call CloseAll()
-	call Open(a:path)
+function! Save()
+	let File=bufnr()
+	let Filename=bufname(File)
+	let Showname=Filename.'['.File.']'
+	FILEINFO 'Save: '.Showname
+	silent w!
+	FILEINFO 'Close: '.Showname
+	silent bwipe!
+endfunction
+function! SaveAs(path)
+	let File=bufnr()
+	let Filename=bufname(File)
+	let Showname=Filename.'['.File.']'
+	FILEINFO 'Save as: '.Showname.' --> '.a:path
+	execute('silent saveas! '.a:path)
+	FILEINFO 'Close: '.Showname
+	execute('bwipe! '.a:path)
+	execute('bwipe! '.Filename)
 endfunction
 
-function! Save(path)
-	DEBUG '          ±£´æ: '.a:path
-	FILEINFO 'Close: '.a:path
-	update!
-	call filter(g:Files, 'v:val!=a:path')
+function! Delete()
+	let File=bufnr()
+	let Filename=bufname(File)
+	let Showname=Filename.'['.File.']'
+	FILEINFO 'Close: '.Showname
+	FILEINFO 'Delete: '.Showname
+	call delete(Filename,'rf')
 endfunction
-function! SaveAll()
-	DEBUG '          È«²¿±£´æ'
-	if g:Files!=[]
-		FILEINFO 'Save all'
-		update!
-		let g:Files=[]
-	endif
-endfunction
-
-function! Close(path)
-	DEBUG '          ¹Ø±Õ: '.a:path
-	FILEINFO 'Close: '.a:path
-	update!
-	execute('bdelete! '.a:path)
-	call filter(g:Files, 'v:val!=a:path')
-endfunction
-function! CloseAll()
-	DEBUG '          È«²¿¹Ø±Õ'
-	if g:Files!=[]
-		FILEINFO 'Close all'
-		update!
-		execute('bdelete! '.string(g:Files))
-		let g:Files=[]
-	endif
-endfunction
-
-function! Delete(path)
-	DEBUG '          É¾³ı: '.a:path
+function! DeletePath(path)
 	FILEINFO 'Delete: '.a:path
-	execute('bdelete! '.a:path)
-	call delete(a:path)
-	call filter(g:Files, 'v:val!=a:path')
-endfunction
-function! DeleteAll()
-	DEBUG '          È«²¿É¾³ı: '.string(g:Files)
-	if g:Files!=[]
-		FILEINFO 'Delete all'
-		execute('bdelete! '.string(g:Files))
-		call delete(g:Files)
-		let g:Files=[]
-	endif
-endfunction
-
-function! Backup(path)
-	DEBUG '          ±¸·İ: '.a:path
-	FILEINFO 'Backup: '.a:path
-	execute('silent !copy '.a:path.' '.a:path.'.bak /Y')
-	redraw!
-endfunction
-function! BackupAll()
-	DEBUG '          È«²¿±¸·İ'
-	if g:Files!=[]
-		FILEINFO 'Backup all'
-		for item in g:Files
-			execute('silent !copy '.item.' '.item.'.bak /Y')
-			redraw!
-		endfor
-	endif
-endfunction
-
-function! Restore(path)
-	DEBUG '          »Ö¸´: '.a:path
-	FILEINFO 'Restore: '.a:path
-	execute('bdelete! '.a:path)
-	execute('silent !copy '.a:path.'.bak '.a:path.' /Y')
-	redraw!
-	execute('silent drop '.a:path)
-	bufdo e!
-endfunction
-function! RestoreAll()
-	DEBUG '          È«²¿»Ö¸´'
-	if g:Files!=[]
-		FILEINFO 'Restore all'
-		for item in g:Files
-			execute('bdelete! '.item)
-			execute('silent !copy '.item.'.bak '.item.' /Y')
-			redraw!
-			execute('silent drop '.item)
-		endfor
-		bufdo e!
-	endif
+	execute('silent! bwipe! '.a:path)
+	call delete(a:path,'rf')
 endfunction
 
 
 
+echo '>>> ZeTap Engine '.ZeTap_Version.' <<<'
 echo '[info] Env loaded.'
 " ----------------------------------------------------------------------------------------------------
 
 
 
-""" Check file header and then start reading this batch file.
-" Headers like: [ZeTap Batch File].<VERSION>
+""" Check file header and then start reading this batch script.
+" Headers like: [ZeTap Batch Script].<VERSION>
 let Header=split(getline(1), '_')
-if Header[0]!='[ZeTap Batch File]'
-	echo '[error] Not a ZeTap batch file.'
+if Header[0]!='[ZeTap Batch Script]'
+	echo '[error] Not a ZeTap batch script.'
+	let RunStatus='NOT_ZETAP'
 else
-" Read batch file
+" Read batch script
 	if filter(Header[1:], 'v:val=="AUTOMAKE"')==['AUTOMAKE']
 		let AUTOMAKE=1
 		set nomore
@@ -257,9 +470,14 @@ else
 	if filter(Header[1:], 'v:val=="DEBUG"')==['DEBUG']
 		let DEBUG=1
 	endif
+	let Script_Version=Header[1]
+	let Script_FullVersion=join(Header[1:],' -')
+	echo '[info] Read batch script '.Script_FullVersion.' .'
+	if Script_Version!=ZeTap_Version
+		echo '[warning] Unmatched script version('.Script_Version.').'
+	endif
 	let Lines=line('$')
 	let Line=2
-	echo '[info] Reading ZeTap batch file '.join(Header[1:],' -')
 	let RunStatus=0		"  0     : Main
 				" >0     : Comment Block Layers
 				" -1-# or $: Search
@@ -271,109 +489,103 @@ else
 		if Columns!=0	" Ignore blank line.
 				" Parsing this line...
 			if RunStatus==0
-				DEBUG '¶ÁÈ¡Óï¾ä: '.Str
+				DEBUG 'è¯»å–è¯­å¥: '.Str
 				if Str[Column-1]=='#'
-					DEBUG '          ËÑË÷: '.Str[Column:]
+					DEBUG '          å¯»æ‰¾: '.Str[Column:]
 					call Runnew('call Replace(Run[RunPointer][1],Run[RunPointer][2])')
-					call Runadd(Str[Column:])
+					call Runarg(Str[Column:])
 					let RunStatus='-1-#'
 				elseif Str[Column-1]=='$'
-					DEBUG '          ËÑË÷: '.Str[Column:]
-					call Runnew('call Replace(Run[RunPointer][1],AutoEscape(Run[RunPointer][2]))')
-					call Runadd(Str[Column:])
+					DEBUG '          è½¬ä¹‰å¯»æ‰¾: '.Str[Column:]
+					call Runnew('call Replace(AutoEscapePat(Run[RunPointer][1]),AutoEscapeSub(Run[RunPointer][2]))')
+					call Runarg(Str[Column:])
 					let RunStatus='-1-$'
 				elseif Str[Column-1]=='?'
-					DEBUG '          ËÑË÷: '.Str[Column:]
-					call Runnew('call search(Run[RunPointer][1])')
-					call Runadd(Str[Column:])
+					DEBUG '          æœç´¢: '.Str[Column:]
+					call Runnew('call Search(Run[RunPointer][1])')
+					call Runarg(Str[Column:])
+					let RunStatus='-1- '
+				elseif Str[Column-1]=='!'
+					DEBUG '          è½¬ä¹‰æœç´¢: '.Str[Column:]
+					call Runnew('call Search(AutoEscapePat(Run[RunPointer][1]))')
+					call Runarg(Str[Column:])
+					let RunStatus='-1- '
+				elseif Str[Column-1]=='[]'
+					DEBUG '          é‡ç½®èŒƒå›´'
+					call Runnew('call SetReset()')
+				elseif Str[Column-1]=='['
+					DEBUG '          é€‰å–èŒƒå›´å‰è¾¹ç•Œ'
+					call Runnew('call SetL()')
+				elseif Str[Column-1]==']'
+					DEBUG '          é€‰å–èŒƒå›´åè¾¹ç•Œ'
+					call Runnew('call SetR()')
+				elseif Str[Column-1]=='+'
+					DEBUG '          æ·»åŠ æ–‡å­—: '.Str[Column:]
+					call Runnew('call Add(Run[RunPointer][1])')
+					call Runarg(Str[Column:])
+					let RunStatus='-1- '
+				elseif Str[Column-1]=='-'
+					DEBUG '          åˆ é™¤æ–‡å­—: '.Str[Column:]
+					call Runnew('call Del(Run[RunPointer][1])')
+					call Runarg(Str[Column:])
+					let RunStatus='-1- '
 				elseif Str[Column-1:Column]=='//'
-					DEBUG '          ×¢ÊÍ'
+					DEBUG '          æ³¨é‡Š'
 				elseif Str[Column-1:Column]=='/*'
-					DEBUG '          ×¢ÊÍ¿é: ¿ªÊ¼'
+					DEBUG '          æ³¨é‡Šå—: å¼€å§‹'
 					let RunStatus=1
 				elseif Str[Column-1:Column]=='::'
-					DEBUG '          Ìø×ª±êÇ©: '.Str[Column+1:]
+					DEBUG '          è·³è½¬æ ‡ç­¾: '.Str[Column+1:]
 					let g:GotoDict[Str[Column+1:]]=len(Run)
 					DEBUG '          GotoDict: '.string(GotoDict)
 				elseif Str[Column-1]==':'
-					DEBUG '          ÃüÁî: '.Str[Column:]
+					DEBUG '          å‘½ä»¤: '.Str[Column:]
 					call Runnew(Str[Column:])
 					let RunStatus='-1- '
-				elseif Str[Column-1:Column]=='<<'
-					if Str[Column+1:]==''
-						echo '[error] Open nothing, ignore it.'
-					else
-						DEBUG '          ´ò¿ªÎÄ¼ş: '.Str[Column+1:]
-						call Runnew('call Open(Run[RunPointer][1])')
-						call Runadd(Str[Column+1:])
-					endif
+
+
 				elseif Str[Column-1]=='<'
 					if Str[Column:]==''
-						echo '[error] Open nothing, ignore it.'
+						DEBUG '          æ‰“å¼€ç©ºæ–‡ä»¶'
+						call Runnew('call OpenBlank()')
 					else
-						DEBUG '          ÇĞ»»ÎÄ¼ş: '.Str[Column:]
-						call Runnew('call Clopen(Run[RunPointer][1])')
-						call Runadd(Str[Column:])
-					endif
-				elseif Str[Column-1]=='>>'
-					if Str[Column:]==''
-						DEBUG '          ±£´æËùÓĞÎÄ¼ş: '.Str[Column+1:]
-						call Runnew('call SaveAll()')
-					else
-						DEBUG '          ±£´æÎÄ¼ş: '.Str[Column+1:]
-						call Runnew('call Save(Run[RunPointer][1])')
-						call Runadd(Str[Column+1:])
+						DEBUG '          æ‰“å¼€æ–‡ä»¶: '.Str[Column:]
+						call Runnew('call Open(Run[RunPointer][1])')
+						call Runarg(Str[Column:])
 					endif
 				elseif Str[Column-1]=='>'
 					if Str[Column:]==''
-						DEBUG '          ¹Ø±ÕËùÓĞÎÄ¼ş: '.Str[Column:]
-						call Runnew('call CloseAll()')
+						DEBUG '          ä¿å­˜æ–‡ä»¶'
+						call Runnew('call Save()')
 					else
-						DEBUG '          ¹Ø±ÕÎÄ¼ş: '.Str[Column:]
-						call Runnew('call Close(Run[RunPointer][1])')
-						call Runadd(Str[Column:])
+						DEBUG '          å¦å­˜ä¸ºæ–‡ä»¶: '.Str[Column:]
+						call Runnew('call SaveAs(Run[RunPointer][1])')
+						call Runarg(Str[Column:])
 					endif
+
 				elseif Str[Column-1]=='x'
 					if Str[Column:]==''
-						DEBUG '          É¾³ıËùÓĞÎÄ¼ş: '.Str[Column:]
-						call Runnew('call DeleteAll()')
+						DEBUG '          åˆ é™¤æ–‡ä»¶'
+						call Runnew('call Delete()')
 					else
-						DEBUG '          É¾³ıÎÄ¼ş: '.Str[Column:]
-						call Runnew('call Delete(Run[RunPointer][1])')
-						call Runadd(Str[Column:])
-					endif
-				elseif Str[Column-1]=='b'
-					if Str[Column:]==''
-						DEBUG '          ±¸·İËùÓĞÎÄ¼ş: '.Str[Column:]
-						call Runnew('call BackupAll()')
-					else
-						DEBUG '          ±¸·İÎÄ¼ş: '.Str[Column:]
-						call Runnew('call Backup(Run[RunPointer][1])')
-						call Runadd(Str[Column:])
-					endif
-				elseif Str[Column-1]=='r'
-					if Str[Column:]==''
-						DEBUG '          »Ö¸´ËùÓĞÎÄ¼ş: '.Str[Column:]
-						call Runnew('call RestoreAll()')
-					else
-						DEBUG '          »Ö¸´ÎÄ¼ş: '.Str[Column:]
-						call Runnew('call Restore(Run[RunPointer][1])')
-						call Runadd(Str[Column:])
+						DEBUG '          åˆ é™¤æ–‡ä»¶: '.Str[Column:]
+						call Runnew('call DeletePath(Run[RunPointer][1])')
+						call Runarg(Str[Column:])
 					endif
 				else
 					echo '[error] Unknown command:'''.Str[Column-1].''', ignore it.'
 				endif
 			elseif RunStatus>0
 				if Str[Column-1:Column]=='*/'
-					DEBUG '          ×¢ÊÍ¿é: ¿ªÊ¼'
+					DEBUG '          æ³¨é‡Šå—: ç»“æŸ'
 					let RunStatus-=1
 				elseif Str[Column-1:Column]=='/*'
-					DEBUG '          ×¢ÊÍ¿é: ½áÊø'
+					DEBUG '          æ³¨é‡Šå—: å¼€å§‹'
 					let RunStatus+=1
 				endif
 			elseif RunStatus=='-1- '
 				if Str[Column-1]==' '
-					DEBUG '          £¨¸ü¶à£©: '.Str[Column:]
+					DEBUG '          ï¼ˆæ›´å¤šï¼‰: '.Str[Column:]
 					call Runmore("\n".Str[Column:])
 				else
 					let RunStatus=0
@@ -381,35 +593,35 @@ else
 				endif
 			elseif RunStatus=='-1-#'
 				if Str[Column-1]=='#'
-					DEBUG '          £¨¸ü¶à£©: '.Str[Column:]
+					DEBUG '          ï¼ˆæ›´å¤šï¼‰: '.Str[Column:]
 					call Runmore("\n".Str[Column:])
 				elseif Str[Column-1]==' '
-					DEBUG '          Ìæ»»: '.Str[Column:]
-					call Runadd(Str[Column:])
+					DEBUG '          æ›¿æ¢: '.Str[Column:]
+					call Runarg(Str[Column:])
 					let RunStatus='-1- '
 				else
-					DEBUG '          Ìæ»»: '.Str[Column:]
-					call Runadd(Str[Column:])
+					DEBUG '          æ›¿æ¢: '.Str[Column:]
+					call Runarg(Str[Column:])
 					let RunStatus=0
 				endif
 			elseif RunStatus=='-1-$'
 				if Str[Column-1]=='$'
-					DEBUG '          £¨¸ü¶à£©: '.Str[Column:]
+					DEBUG '          ï¼ˆæ›´å¤šï¼‰: '.Str[Column:]
 					call Runmore("\n".Str[Column:])
 				elseif Str[Column-1]==' '
-					DEBUG '          ×ªÒåÌæ»»: '.Str[Column:]
-					call Runadd(Str[Column:])
+					DEBUG '          è½¬ä¹‰æ›¿æ¢: '.Str[Column:]
+					call Runarg(Str[Column:])
 					let RunStatus='-1- '
 				else
-					DEBUG '          ×ªÒåÌæ»»: '.Str[Column:]
-					call Runadd(Str[Column:])
+					DEBUG '          è½¬ä¹‰æ›¿æ¢: '.Str[Column:]
+					call Runarg(Str[Column:])
 					let RunStatus=0
 				endif
 			else
 				echo '[error] Unknown RunStatus:'''.RunStatus.'''.'
 				let RunStatus=0
 			endif
-			DEBUG 'ÄÚ´æ: '.string(Run)
+			DEBUG 'å†…å­˜: '.string(Run)
 		endif
 	" Next line
 		let Line+=1
@@ -427,22 +639,31 @@ endif
 
 
 
-let RunPointer=0
-DEBUG '----------------¿ªÊ¼Ö´ĞĞ----------------'
-while True()
-	if RunPointer<0
-		Break
-	elseif RunPointer>=len(Run)
-		Break
-	else
-		DEBUG 'Ö´ĞĞÓï¾ä: '.Run[RunPointer][0]
-		execute(Run[RunPointer][0])
-		let RunPointer+=1
-	endif
-endwhile
-call CloseAll()
-unlet RunPointer
-
+if RunStatus.''!='NOT_ZETAP'
+	let RunPointer=0
+	DEBUG '----------------å¼€å§‹æ‰§è¡Œ----------------'
+	while True()
+		if RunPointer<0
+			Break
+		elseif RunPointer>=len(Run)
+			Break
+		else
+			DEBUG 'æ‰§è¡Œè¯­å¥: '.Run[RunPointer][0]
+			execute(Run[RunPointer][0])
+			echo '--------------'
+			if exists('b:Range')
+				echo b:Range
+			endif
+			echo '--------------'
+			let RunPointer+=1
+			if exists('NextRunPointer')
+				let RunPointer=NextRunPointer
+				unlet! NextRunPointer
+			endif
+		endif
+	endwhile
+	unlet! RunPointer
+endif
 
 
 if AUTOMAKE==1
@@ -452,11 +673,14 @@ endif
 
 
 "let a=readfile('')
-"getline(1)Ê×ĞĞ£¬´Ó1¿ªÊ¼
-""" normal G×ªµ½ĞĞÎ²
-""" strlen(getline('.'))µ±Ç°ĞĞ×ÖÊı
-"getcurpos()[1]µ±Ç°ĞĞºÅ
+"getline(1)é¦–è¡Œï¼Œä»1å¼€å§‹
+""" normal Gè½¬åˆ°è¡Œå°¾
+""" strlen(getline('.'))å½“å‰è¡Œå­—æ•°
+"getcurpos()[1]å½“å‰è¡Œå·
 "line('$')
 "line('.')
 "col('.')
 "rand()
+"
+"
+"matchstrpos()
