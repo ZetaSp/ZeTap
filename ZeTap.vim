@@ -1,11 +1,11 @@
 " ZeTap - THE Translation Auto Processor
 " Maintainer:	Zetaspace <ideaploter@outlook.com>
-" Version:	0.3.0 Alpha
+" Version:	0.3.1 Alpha
 " Last Update:	2021 Jun 10
 
 
 
-let ZeTap_Version='0.3.0'
+let ZeTap_Version='0.3.1'
 let DEBUG=0
 let AUTOMAKE=0
 set encoding=utf-8
@@ -156,7 +156,7 @@ function! Replace(a='',b='')
 	echo '□■ '.a:a.' --> '.a:b
 
 
-echo '0------------------------'
+	echo '0------------------------'
 	echo '[DBG] fullpage'
 	echo fullpage
 	echo '[DBG] b:Range'
@@ -226,7 +226,7 @@ echo '0------------------------'
 	let fullpage=getline(1,'$')
 
 
-echo '1------------------------'
+	echo '1------------------------'
 	echo '[DBG] fullpage'
 	echo fullpage
 	echo '[DBG] i'
@@ -278,7 +278,7 @@ echo '1------------------------'
 			let pagestrL.=pagestr0[:L1-1]
 			let pagestr0=pagestr0[L1:]
 		endif
-		
+
 		let pagestr=join([pagestr0]+page+[pagestr1],"\n")
 	endif
 
@@ -287,7 +287,7 @@ echo '1------------------------'
 	endif
 
 
-echo '2------------------------'
+	echo '2------------------------'
 	echo '[DBG] fullpage'
 	echo fullpage
 	echo '[DBG] i'
@@ -345,15 +345,23 @@ endfunction
 let SecL=[0,0]
 let SecR=[0,0]
 "let b:Range=[[0,0],[line('$'),col('$')]]	NOOOOOO!!! DONOT USE THIS!
-function! Search(a)
-	DEBUG '搜索: '.a:a
-	echo '>□ '.a:a
-	if searchpos(a:a,'zncW')==[1,1]
-		let g:SecL=[1,1]
+function! Search(a='')
+	if a:a==''
+		DEBUG '光标归位'
+		echo '^^'
+		call setpos('.',[bufnr(),1,1,0])
+		let g:SecL=[0,0]
+		let g:SecR=[0,0]
 	else
-		let g:SecL=searchpos(a:a,'zW')
+		DEBUG '搜索: '.a:a
+		echo '>□ '.a:a
+		if searchpos(a:a,'zncW')==[1,1]
+			let g:SecL=[1,1]
+		else
+			let g:SecL=searchpos(a:a,'zW')
+		endif
+		let g:SecR=searchpos(a:a,'zencW')
 	endif
-	let g:SecR=searchpos(a:a,'zencW')
 endfunction
 
 function! SetL()
@@ -458,213 +466,214 @@ echo '[info] Env loaded.'
 """ Check file header and then start reading this batch script.
 " Headers like: [ZeTap Batch Script].<VERSION>
 let Header=split(getline(1), '_')
+if Header==[]
+	let Header=['']
+endif
 if Header[0]!='[ZeTap Batch Script]'
-	echo '[error] Not a ZeTap batch script.'
-	let RunStatus='NOT_ZETAP'
-else
+	echo '[error] Not a ZeTap batch script. Quit.'
+	finish
+endif
+
 " Read batch script
-	if filter(Header[1:], 'v:val=="AUTOMAKE"')==['AUTOMAKE']
-		let AUTOMAKE=1
-		set nomore
-	endif
-	if filter(Header[1:], 'v:val=="DEBUG"')==['DEBUG']
-		let DEBUG=1
-	endif
-	let Script_Version=Header[1]
-	let Script_FullVersion=join(Header[1:],' -')
-	echo '[info] Read batch script '.Script_FullVersion.' .'
-	if Script_Version!=ZeTap_Version
-		echo '[warning] Unmatched script version('.Script_Version.').'
-	endif
-	let Lines=line('$')
-	let Line=2
-	let RunStatus=0		"  0     : Main
-				" >0     : Comment Block Layers
-				" -1-# or $: Search
-				" -1- : Replace or Execute
-	while True()
-		let Str=getline(Line)
-		let Columns=strlen(Str)
-		let Column=1
-		if Columns!=0	" Ignore blank line.
-				" Parsing this line...
-			if RunStatus==0
-				DEBUG '读取语句: '.Str
-				if Str[Column-1]=='#'
-					DEBUG '          寻找: '.Str[Column:]
-					call Runnew('call Replace(Run[RunPointer][1],Run[RunPointer][2])')
-					call Runarg(Str[Column:])
-					let RunStatus='-1-#'
-				elseif Str[Column-1]=='$'
-					DEBUG '          转义寻找: '.Str[Column:]
-					call Runnew('call Replace(AutoEscapePat(Run[RunPointer][1]),AutoEscapeSub(Run[RunPointer][2]))')
-					call Runarg(Str[Column:])
-					let RunStatus='-1-$'
-				elseif Str[Column-1]=='?'
-					DEBUG '          搜索: '.Str[Column:]
-					call Runnew('call Search(Run[RunPointer][1])')
-					call Runarg(Str[Column:])
-					let RunStatus='-1- '
-				elseif Str[Column-1]=='!'
-					DEBUG '          转义搜索: '.Str[Column:]
-					call Runnew('call Search(AutoEscapePat(Run[RunPointer][1]))')
-					call Runarg(Str[Column:])
-					let RunStatus='-1- '
-				elseif Str[Column-1]=='[]'
-					DEBUG '          重置范围'
-					call Runnew('call SetReset()')
-				elseif Str[Column-1]=='['
-					DEBUG '          选取范围前边界'
-					call Runnew('call SetL()')
-				elseif Str[Column-1]==']'
-					DEBUG '          选取范围后边界'
-					call Runnew('call SetR()')
-				elseif Str[Column-1]=='+'
-					DEBUG '          添加文字: '.Str[Column:]
-					call Runnew('call Add(Run[RunPointer][1])')
-					call Runarg(Str[Column:])
-					let RunStatus='-1- '
-				elseif Str[Column-1]=='-'
-					DEBUG '          删除文字: '.Str[Column:]
-					call Runnew('call Del(Run[RunPointer][1])')
-					call Runarg(Str[Column:])
-					let RunStatus='-1- '
-				elseif Str[Column-1:Column]=='//'
-					DEBUG '          注释'
-				elseif Str[Column-1:Column]=='/*'
-					DEBUG '          注释块: 开始'
-					let RunStatus=1
-				elseif Str[Column-1:Column]=='::'
-					DEBUG '          跳转标签: '.Str[Column+1:]
-					let g:GotoDict[Str[Column+1:]]=len(Run)
-					DEBUG '          GotoDict: '.string(GotoDict)
-				elseif Str[Column-1]==':'
-					DEBUG '          命令: '.Str[Column:]
-					call Runnew(Str[Column:])
-					let RunStatus='-1- '
+if filter(Header[1:], 'v:val=="AUTOMAKE"')==['AUTOMAKE']
+	let AUTOMAKE=1
+	set nomore
+endif
+if filter(Header[1:], 'v:val=="DEBUG"')==['DEBUG']
+	let DEBUG=1
+endif
+let Script_Version=Header[1]
+let Script_FullVersion=join(Header[1:],' -')
+echo '[info] Read batch script '.Script_FullVersion.' .'
+if Script_Version!=ZeTap_Version
+	echo '[warning] Unmatched script version('.Script_Version.').'
+endif
+let Lines=line('$')
+let Line=2
+let RunStatus=0
+"  0     : Main
+" >0     : Comment Block Layers
+" -1-# or $: Search
+" -1- : Replace or Execute
+while True()
+	let Str=getline(Line)
+	let Columns=strlen(Str)
+	let Column=1
+	if Columns!=0	" Ignore blank line.
+		" Parsing this line...
+		if RunStatus==0
+			DEBUG '读取语句: '.Str
+			if Str[Column-1]=='#'
+				DEBUG '          寻找: '.Str[Column:]
+				call Runnew('call Replace(Run[RunPointer][1],Run[RunPointer][2])')
+				call Runarg(Str[Column:])
+				let RunStatus='-1-#'
+			elseif Str[Column-1]=='$'
+				DEBUG '          转义寻找: '.Str[Column:]
+				call Runnew('call Replace(AutoEscapePat(Run[RunPointer][1]),AutoEscapeSub(Run[RunPointer][2]))')
+				call Runarg(Str[Column:])
+				let RunStatus='-1-$'
+			elseif Str[Column-1]=='!'
+				DEBUG '          搜索: '.Str[Column:]
+				call Runnew('call Search(Run[RunPointer][1])')
+				call Runarg(Str[Column:])
+				let RunStatus='-1- '
+			elseif Str[Column-1]=='?'
+				DEBUG '          转义搜索: '.Str[Column:]
+				call Runnew('call Search(AutoEscapePat(Run[RunPointer][1]))')
+				call Runarg(Str[Column:])
+				let RunStatus='-1- '
+			elseif Str[Column-1]=='[]'
+				DEBUG '          重置范围'
+				call Runnew('call SetReset()')
+			elseif Str[Column-1]=='['
+				DEBUG '          选取范围前边界'
+				call Runnew('call SetL()')
+			elseif Str[Column-1]==']'
+				DEBUG '          选取范围后边界'
+				call Runnew('call SetR()')
+			elseif Str[Column-1]=='+'
+				DEBUG '          添加文字: '.Str[Column:]
+				call Runnew('call Add(Run[RunPointer][1])')
+				call Runarg(Str[Column:])
+				let RunStatus='-1- '
+			elseif Str[Column-1]=='-'
+				DEBUG '          删除文字: '.Str[Column:]
+				call Runnew('call Del(Run[RunPointer][1])')
+				call Runarg(Str[Column:])
+				let RunStatus='-1- '
+			elseif Str[Column-1:Column]=='//'
+				DEBUG '          注释'
+			elseif Str[Column-1:Column]=='/*'
+				DEBUG '          注释块: 开始'
+				let RunStatus=1
+			elseif Str[Column-1:Column]=='::'
+				DEBUG '          跳转标签: '.Str[Column+1:]
+				let g:GotoDict[Str[Column+1:]]=len(Run)
+				DEBUG '          GotoDict: '.string(GotoDict)
+			elseif Str[Column-1]==':'
+				DEBUG '          命令: '.Str[Column:]
+				call Runnew(Str[Column:])
+				let RunStatus='-1- '
 
 
-				elseif Str[Column-1]=='<'
-					if Str[Column:]==''
-						DEBUG '          打开空文件'
-						call Runnew('call OpenBlank()')
-					else
-						DEBUG '          打开文件: '.Str[Column:]
-						call Runnew('call Open(Run[RunPointer][1])')
-						call Runarg(Str[Column:])
-					endif
-				elseif Str[Column-1]=='>'
-					if Str[Column:]==''
-						DEBUG '          保存文件'
-						call Runnew('call Save()')
-					else
-						DEBUG '          另存为文件: '.Str[Column:]
-						call Runnew('call SaveAs(Run[RunPointer][1])')
-						call Runarg(Str[Column:])
-					endif
+			elseif Str[Column-1]=='<'
+				if Str[Column:]==''
+					DEBUG '          打开空文件'
+					call Runnew('call OpenBlank()')
+				else
+					DEBUG '          打开文件: '.Str[Column:]
+					call Runnew('call Open(Run[RunPointer][1])')
+					call Runarg(Str[Column:])
+				endif
+			elseif Str[Column-1]=='>'
+				if Str[Column:]==''
+					DEBUG '          保存文件'
+					call Runnew('call Save()')
+				else
+					DEBUG '          另存为文件: '.Str[Column:]
+					call Runnew('call SaveAs(Run[RunPointer][1])')
+					call Runarg(Str[Column:])
+				endif
 
-				elseif Str[Column-1]=='x'
-					if Str[Column:]==''
-						DEBUG '          删除文件'
-						call Runnew('call Delete()')
-					else
-						DEBUG '          删除文件: '.Str[Column:]
-						call Runnew('call DeletePath(Run[RunPointer][1])')
-						call Runarg(Str[Column:])
-					endif
+			elseif Str[Column-1]=='x'
+				if Str[Column:]==''
+					DEBUG '          删除文件'
+					call Runnew('call Delete()')
 				else
-					echo '[error] Unknown command:'''.Str[Column-1].''', ignore it.'
-				endif
-			elseif RunStatus>0
-				if Str[Column-1:Column]=='*/'
-					DEBUG '          注释块: 结束'
-					let RunStatus-=1
-				elseif Str[Column-1:Column]=='/*'
-					DEBUG '          注释块: 开始'
-					let RunStatus+=1
-				endif
-			elseif RunStatus=='-1- '
-				if Str[Column-1]==' '
-					DEBUG '          （更多）: '.Str[Column:]
-					call Runmore("\n".Str[Column:])
-				else
-					let RunStatus=0
-					let Line-=1
-				endif
-			elseif RunStatus=='-1-#'
-				if Str[Column-1]=='#'
-					DEBUG '          （更多）: '.Str[Column:]
-					call Runmore("\n".Str[Column:])
-				elseif Str[Column-1]==' '
-					DEBUG '          替换: '.Str[Column:]
+					DEBUG '          删除文件: '.Str[Column:]
+					call Runnew('call DeletePath(Run[RunPointer][1])')
 					call Runarg(Str[Column:])
-					let RunStatus='-1- '
-				else
-					DEBUG '          替换: '.Str[Column:]
-					call Runarg(Str[Column:])
-					let RunStatus=0
-				endif
-			elseif RunStatus=='-1-$'
-				if Str[Column-1]=='$'
-					DEBUG '          （更多）: '.Str[Column:]
-					call Runmore("\n".Str[Column:])
-				elseif Str[Column-1]==' '
-					DEBUG '          转义替换: '.Str[Column:]
-					call Runarg(Str[Column:])
-					let RunStatus='-1- '
-				else
-					DEBUG '          转义替换: '.Str[Column:]
-					call Runarg(Str[Column:])
-					let RunStatus=0
 				endif
 			else
-				echo '[error] Unknown RunStatus:'''.RunStatus.'''.'
+				echo '[error] Unknown command:'''.Str[Column-1].''', ignore it.'
+			endif
+		elseif RunStatus>0
+			if Str[Column-1:Column]=='*/'
+				DEBUG '          注释块: 结束'
+				let RunStatus-=1
+			elseif Str[Column-1:Column]=='/*'
+				DEBUG '          注释块: 开始'
+				let RunStatus+=1
+			endif
+		elseif RunStatus=='-1- '
+			if Str[Column-1]==' '
+				DEBUG '          （更多）: '.Str[Column:]
+				call Runmore("\n".Str[Column:])
+			else
+				let RunStatus=0
+				let Line-=1
+			endif
+		elseif RunStatus=='-1-#'
+			if Str[Column-1]=='#'
+				DEBUG '          （更多）: '.Str[Column:]
+				call Runmore("\n".Str[Column:])
+			elseif Str[Column-1]==' '
+				DEBUG '          替换: '.Str[Column:]
+				call Runarg(Str[Column:])
+				let RunStatus='-1- '
+			else
+				DEBUG '          替换: '.Str[Column:]
+				call Runarg(Str[Column:])
 				let RunStatus=0
 			endif
-			DEBUG '内存: '.string(Run)
-		endif
-	" Next line
-		let Line+=1
-		if Line>Lines
-			Break
-		endif
-	endwhile
-" Cleanwork
-	unlet Line
-	unlet Lines
-	unlet Column
-	unlet Columns
-	unlet Str
-endif
-
-
-
-if RunStatus.''!='NOT_ZETAP'
-	let RunPointer=0
-	DEBUG '----------------开始执行----------------'
-	while True()
-		if RunPointer<0
-			Break
-		elseif RunPointer>=len(Run)
-			Break
+		elseif RunStatus=='-1-$'
+			if Str[Column-1]=='$'
+				DEBUG '          （更多）: '.Str[Column:]
+				call Runmore("\n".Str[Column:])
+			elseif Str[Column-1]==' '
+				DEBUG '          转义替换: '.Str[Column:]
+				call Runarg(Str[Column:])
+				let RunStatus='-1- '
+			else
+				DEBUG '          转义替换: '.Str[Column:]
+				call Runarg(Str[Column:])
+				let RunStatus=0
+			endif
 		else
-			DEBUG '执行语句: '.Run[RunPointer][0]
-			execute(Run[RunPointer][0])
-			echo '--------------'
-			if exists('b:Range')
-				echo b:Range
-			endif
-			echo '--------------'
-			let RunPointer+=1
-			if exists('NextRunPointer')
-				let RunPointer=NextRunPointer
-				unlet! NextRunPointer
-			endif
+			echo '[error] Unknown RunStatus:'''.RunStatus.'''.'
+			let RunStatus=0
 		endif
-	endwhile
-	unlet! RunPointer
-endif
+		DEBUG '内存: '.string(Run)
+	endif
+	" Next line
+	let Line+=1
+	if Line>Lines
+		Break
+	endif
+endwhile
+" Cleanwork
+unlet Line
+unlet Lines
+unlet Column
+unlet Columns
+unlet Str
 
+
+
+let RunPointer=0
+DEBUG '----------------开始执行----------------'
+while True()
+	if RunPointer<0
+		Break
+	elseif RunPointer>=len(Run)
+		Break
+	else
+		DEBUG '执行语句: '.Run[RunPointer][0]
+		execute(Run[RunPointer][0])
+		echo '--------------'
+		if exists('b:Range')
+			echo b:Range
+		endif
+		echo '--------------'
+		let RunPointer+=1
+		if exists('NextRunPointer')
+			let RunPointer=NextRunPointer
+			unlet! NextRunPointer
+		endif
+	endif
+endwhile
+unlet! RunPointer
 
 if AUTOMAKE==1
 	exit
