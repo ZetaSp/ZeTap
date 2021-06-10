@@ -2,7 +2,7 @@
 
 The Translation Auto Processor
 
-0.2.0 test
+0.3.0 test bug
 
 ## Intro
 
@@ -30,7 +30,7 @@ __example.js__ was translated.
 
 Nice.
 
-## Grammar
+## Grammar (TODO: UPDATE THIS)
 
 ### Text Replacing
 
